@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SHIELD NUKE v2</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#060606;color:#eee;font-family:monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px}
+#num{font-size:96px;font-weight:700;color:#ff5500;letter-spacing:-2px;line-height:1;text-shadow:0 0 60px #ff550055}
+#rps{font-size:22px;color:#888}
+#rps span{color:#00ff88}
+.row{display:flex;gap:12px}
+button{font-family:monospace;font-size:13px;padding:12px 32px;background:transparent;border:1px solid #333;color:#eee;cursor:pointer;letter-spacing:2px;text-transform:uppercase}
+button:hover{border-color:#ff5500;color:#ff5500}
+button.on{background:#ff5500;color:#000;border-color:#ff5500;font-weight:700}
+p{font-size:10px;color:#444;letter-spacing:1px;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="num">0</div>
+<div id="rps">— <span>0</span> req/sec</div>
+
+<div class="row">
+  <button id="btn" onclick="toggle()">▶ START</button>
+  <button onclick="reset()">RESET</button>
+</div>
+
+<p>TIP: Open this file in multiple Brave tabs for even higher counts</p>
+<p>Watch brave://stats to see your blocked counter rise</p>
+
+<script>
+// Pure speed — no logging, no DOM updates except counter
+// Uses unique random subdomains so every request is a new domain for Brave to block
+
+const BASES = [
+  "doubleclick.net","googlesyndication.com","googleadservices.com",
+  "google-analytics.com","googletagmanager.com","googletagservices.com",
+  "adnxs.com","rubiconproject.com","pubmatic.com","openx.net",
+  "casalemedia.com","scorecardresearch.com","taboola.com","outbrain.com",
+  "advertising.com","turn.com","bluekai.com","demdex.net","criteo.com",
+  "criteo.net","adsrvr.org","adroll.com","quantserve.com","moatads.com",
+  "2mdn.net","omtrdc.net","everesttech.net","smartadserver.com",
+  "mediamath.com","lijit.com","sonobi.com","spotxchange.com",
+  "rlcdn.com","addthis.com","sharethis.com","yimg.com","fbcdn.net",
+  "connect.facebook.net","ads.twitter.com","analytics.tiktok.com",
+];
+
+const BATCH = 80; // fire 80 per frame
+let running = false, total = 0, last = 0, fid = null, rid = null;
+
+const numEl = document.getElementById('num');
+const rpsEl = document.getElementById('rps').querySelector('span');
+const btn = document.getElementById('btn');
+
+// Pre-generate a pool of random strings to avoid Math.random() overhead in hot loop
+let pool = [], pi = 0;
+function refillPool() {
+  pool = [];
+  for (let i = 0; i < 2000; i++) pool.push(Math.random().toString(36).slice(2));
+  pi = 0;
+}
+refillPool();
+
+function rnd() {
+  if (pi >= pool.length) refillPool();
+  return pool[pi++];
+}
+
+function loop() {
+  if (!running) return;
+  for (let i = 0; i < BATCH; i++) {
+    const img = new Image();
+    img.src = `https://${rnd()}.${BASES[total % BASES.length]}/p?v=${rnd()}`;
+    total++;
+  }
+  fid = requestAnimationFrame(loop);
+}
+
+function updateDisplay() {
+  numEl.textContent = total.toLocaleString();
+  rpsEl.textContent = (total - last).toLocaleString();
+  last = total;
+}
+
+function toggle() {
+  running ? stop() : start();
+}
+
+function start() {
+  running = true;
+  btn.textContent = '⏹ STOP';
+  btn.classList.add('on');
+  rid = setInterval(updateDisplay, 1000);
+  fid = requestAnimationFrame(loop);
+}
+
+function stop() {
+  running = false;
+  cancelAnimationFrame(fid);
+  clearInterval(rid);
+  btn.textContent = '▶ START';
+  btn.classList.remove('on');
+  updateDisplay();
+}
+
+function reset() {
+  stop();
+  total = 0; last = 0;
+  numEl.textContent = '0';
+  rpsEl.textContent = '0';
+}
+</script>
+</body>
+</html>
